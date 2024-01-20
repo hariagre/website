@@ -1,0 +1,59 @@
+pipeline {
+  environment {
+    registry = 'hariagre/webapp'                             
+    registryCredential = 'dockerhub'
+    dockerImage = 'hariagre/webapp'
+  }
+ stages {
+        stage('Job 1 - Building Website') {
+            steps {
+                script {
+                    checkout scm
+                    docker.build(DOCKER_IMAGE)
+                }
+            }
+        }
+
+        stage('Job 2 - Testing Website') {
+            steps {
+                script {
+                    checkout scm
+                    docker.image(DOCKER_IMAGE).run("--name test-container -p 8080:80 -d")
+                    // Perform testing steps
+                    // e.g., use curl or other tools to test the running container
+                }
+            }
+        }
+stage('Job 3 - Push to Production') {
+            when {
+                expression { currentBuild.sourceBranch == 'refs/heads/master' }
+            }
+            steps {
+                script {
+                    checkout scm
+                    docker.image(DOCKER_IMAGE).run("--name prod-container -p 80:80 -d")
+                    // Additional steps for production deployment
+                    // e.g., update Nginx/Apache configuration, database migrations, etc.
+                    // Make sure to clean up any previous test or staging containers
+                    sh 'docker rm -f test-container'
+                }
+            }
+        }
+stage('Install Script on Test Server') {
+            steps {
+                script {
+                    // Copy script to Test server
+                    sh 'scp script.sh user@Test:/home/ubuntu/config-management/'
+                }
+            }
+        }
+
+        stage('Install Script on Prod Server') {
+            steps {
+                script {
+                    // Copy script to Prod server
+                    sh 'scp script.sh user@Prod:/home/ubuntu/config-management/'
+                }
+            }
+        }
+    }
